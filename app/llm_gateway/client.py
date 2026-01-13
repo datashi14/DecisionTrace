@@ -3,7 +3,8 @@ import structlog
 from typing import Any, Dict
 from anthropic import AsyncAnthropic
 from app.core.config import settings
-from app.core.schemas import DecisionOutcome
+import anthropic
+from app.core.exceptions import ModelTimeoutError
 
 logger = structlog.get_logger()
 
@@ -32,12 +33,10 @@ class LLMGateway:
                 max_tokens=max_tokens,
                 system=system_prompt,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=10.0  # Set explicit timeout
             )
             
             latency_ms = int((time.time() - start_time) * 1000)
-            
-            # Note: In a real system, we'd use Anthropic's tool use or vision-specific prompting
-            # for strict JSON. Here we'll assume the prompt enforces it and we parse.
             content = response.content[0].text
             
             logger.info(
@@ -54,14 +53,11 @@ class LLMGateway:
                 "latency_ms": latency_ms
             }
             
+        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
+            logger.error("llm_request_timeout", error=str(e))
+            raise ModelTimeoutError(f"LLM provider timeout or connection issue: {str(e)}")
         except Exception as e:
             logger.error("llm_request_failed", error=str(e))
-            # Safety guarantee: fail to ABSTAIN
-            return {
-                "decision": DecisionOutcome.ABSTAIN,
-                "rationale": f"System error during model call: {str(e)}",
-                "confidence": 0.0,
-                "latency_ms": int((time.time() - start_time) * 1000)
-            }
+            raise ModelTimeoutError(f"Unexpected LLM error: {str(e)}")
 
 llm_gateway = LLMGateway()

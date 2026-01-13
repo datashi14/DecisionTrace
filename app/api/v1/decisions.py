@@ -62,10 +62,13 @@ async def create_decision(request: DecisionRequest):
             "decision": decision_result
         })
     except Exception as e:
-        logger.error("trace_logging_failed", error=str(e))
+        logger.error("trace_logging_failed", error=str(e), trace_id=trace_id)
+        # CRITICAL: If trace persistence fails, we MUST revoke an ACT decision.
         if decision_result.get("decision") == "ACT":
+             logger.warning("revoking_action_due_to_trace_failure", trace_id=trace_id)
              decision_result["decision"] = "ABSTAIN"
-             decision_result["rationale"] += " (Trace logging failed, action revoked for safety)"
+             decision_result["rationale"] += " (CRITICAL: Trace persistence failure. Action revoked for safety.)"
+             decision_result["risk_factors"].append("trace_persistence_failure")
 
     # Include trace_id in response
     decision_result["trace_id"] = trace_id
