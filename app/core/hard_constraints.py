@@ -10,19 +10,27 @@ class HardConstraints:
     """
     
     @staticmethod
-    def check(context: Dict[str, Any], signals: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    def check(context: Dict[str, Any], signals: Dict[str, Any], policy: Optional[Dict[str, Any]] = None) -> Tuple[bool, Optional[str]]:
         """
         Returns (is_safe, failure_rationale)
         """
-        # Rule 1: High-value unverified transactions
+        config = (policy or {}).get("hard_constraints", {})
+        
+        # Rule 1: High-value transactions
         amount = signals.get("amount", 0)
         is_verified = context.get("is_verified", False)
         
-        if amount > 10000 and not is_verified:
-            return False, "Hard Constraint: High-value transaction (>10k) rejected for unverified user."
+        max_unverified = config.get("max_transaction_unverified", 10000)
+        max_verified = config.get("max_transaction_verified", 100000)
+        
+        if not is_verified and amount > max_unverified:
+            return False, f"Hard Constraint: Transaction amount ${amount} exceeds max for unverified user (${max_unverified})."
+            
+        if is_verified and amount > max_verified:
+            return False, f"Hard Constraint: Transaction amount ${amount} exceeds absolute max allowed (${max_verified})."
             
         # Rule 2: Restricted Jurisdictions
-        restricted_regions = ["COUNTRY_X", "COUNTRY_Y"]
+        restricted_regions = config.get("restricted_regions", ["COUNTRY_X", "COUNTRY_Y"])
         region = context.get("region")
         if region in restricted_regions:
             return False, f"Hard Constraint: Operation blocked for restricted region: {region}"

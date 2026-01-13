@@ -20,13 +20,17 @@ class EvidencePlanner:
         )
         
         # 0. Initial Cost Estimate (Threshold Check)
+        config = (constraints.get("policy") or {}).get("cost_limits", {})
+        voi_threshold_ratio = config.get("voi_threshold_ratio", 0.001)
+        voi_max_usd = config.get("voi_max_usd", 5.0)
+
         estimated_input_tokens = len(prompt) // 4
         estimated_cost_usd = (estimated_input_tokens + 1000) * 0.00001 
         
         signals = input_data.get("signals", {})
         transaction_value = signals.get("amount", 0)
         
-        if estimated_cost_usd > 5.0 or (transaction_value > 0 and estimated_cost_usd > transaction_value * 0.001):
+        if estimated_cost_usd > voi_max_usd or (transaction_value > 0 and estimated_cost_usd > transaction_value * voi_threshold_ratio):
              logger.warning("cost_gate_triggered", estimated_cost=estimated_cost_usd, value=transaction_value)
              return {
                  "recommended_path": "ABSTAIN",

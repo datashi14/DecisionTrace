@@ -1,10 +1,23 @@
-name: Default Safety Policy
-version: 1.0.0
-description: Basic constraints for decision making.
-abstention_threshold: 0.7
-required_fields:
-  - user_id
-  - action_type
-safety_rules:
-  - "No action without user_id"
-  - "Abstain if risk > 0.5"
+name: "default"
+version: "1.0.0"
+description: "Core safety policy for DecisionTrace"
+
+hard_constraints:
+  max_transaction_unverified: 10000
+  max_transaction_verified: 100000
+  restricted_regions: ["COUNTRY_X", "COUNTRY_Y"]
+
+confidence_thresholds:
+  act_minimum: 0.8
+  abstain_maximum: 0.6
+
+cost_limits:
+  max_tokens_per_decision: 10000
+  max_latency_ms: 5000
+  voi_threshold_ratio: 0.001 # 0.1% of transaction value
+  voi_max_usd: 5.0
+
+asymmetric_shadow:
+  enabled: true
+  primary_model: "claude-3-5-sonnet-20240620"
+  shadow_model: "claude-3-5-haiku-20241022"

@@ -27,7 +27,7 @@ async def create_decision(request: DecisionRequest):
     logger.info("decision_requested", trace_id=trace_id, policy_id=policy_id)
 
     # 0. Deterministic Hard Constraints (Shadow Policy)
-    is_safe, constraint_rationale = hard_constraints.check(request.context, request.signals)
+    is_safe, constraint_rationale = hard_constraints.check(request.context, request.signals, policy=policy)
     if not is_safe:
         logger.warning("hard_constraint_violated", trace_id=trace_id, rationale=constraint_rationale)
         return {
