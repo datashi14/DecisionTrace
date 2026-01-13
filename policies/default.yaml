@@ -1,0 +1,10 @@
+name: Default Safety Policy
+version: 1.0.0
+description: Basic constraints for decision making.
+abstention_threshold: 0.7
+required_fields:
+  - user_id
+  - action_type
+safety_rules:
+  - "No action without user_id"
+  - "Abstain if risk > 0.5"

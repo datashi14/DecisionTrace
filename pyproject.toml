@@ -1,0 +1,29 @@
+[project]
+name = "decisiontrace"
+version = "0.1.0"
+description = "A safety-first Applied AI decision system"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pydantic-settings",
+    "structlog",
+    "asyncpg",
+    "anthropic",
+    "redis"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "httpx"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
