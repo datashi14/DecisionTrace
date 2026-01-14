@@ -1,21 +1,55 @@
 services:
-  db:
-    image: postgres:15-alpine
-    restart: always
+  api:
+    build: .
+    container_name: decisiontrace_api
+    ports:
+      - "8000:8000"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - DATABASE_URL=postgresql://postgres:password@db:5432/decisiontrace
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: decisiontrace_db
+    environment:
       - POSTGRES_DB=decisiontrace
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - POSTGRES_PASSWORD=password
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    restart: always
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: decisiontrace_prometheus
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "6379:6379"
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: decisiontrace_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  grafana_data:
