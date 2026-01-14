@@ -1,3 +1,4 @@
+import time
 import uuid
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -7,6 +8,7 @@ from app.decision_engine.engine import decision_engine
 from app.trace_store.store import trace_store
 from app.core.policies import policy_manager
 from app.core.hard_constraints import hard_constraints
+from app.observability.metrics import decisions_total, decision_latency_seconds, hard_constraint_violations_total
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -16,6 +18,7 @@ async def create_decision(request: DecisionRequest):
     """
     Core entrypoint for the DecisionTrace pipeline.
     """
+    start_time = time.time()
     trace_id = str(uuid.uuid4())
     
     # Resolve policy
@@ -30,6 +33,11 @@ async def create_decision(request: DecisionRequest):
     is_safe, constraint_rationale = hard_constraints.check(request.context, request.signals, policy=policy)
     if not is_safe:
         logger.warning("hard_constraint_violated", trace_id=trace_id, rationale=constraint_rationale)
+        
+        # Record Metric
+        hard_constraint_violations_total.labels(policy_id=policy_id).inc()
+        decisions_total.labels(decision_outcome="ABSTAIN", policy_id=policy_id).inc()
+        
         return {
             "decision": "ABSTAIN",
             "confidence": 1.0,
@@ -53,6 +61,13 @@ async def create_decision(request: DecisionRequest):
         evidence_assessment=evidence_result,
         constraints={"policy": policy}
     )
+
+    # Record Metrics
+    latency = time.time() - start_time
+    decision_outcome = decision_result.get("decision", "ABSTAIN")
+    
+    decisions_total.labels(decision_outcome=decision_outcome, policy_id=policy_id).inc()
+    decision_latency_seconds.labels(policy_id=policy_id).observe(latency)
 
     # 3. Trace Logging (Immutable)
     try:

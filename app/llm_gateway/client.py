@@ -5,6 +5,7 @@ from anthropic import AsyncAnthropic
 from app.core.config import settings
 import anthropic
 from app.core.exceptions import ModelTimeoutError
+from app.observability.metrics import tokens_consumed_total, llm_latency_seconds
 
 logger = structlog.get_logger()
 
@@ -46,6 +47,11 @@ class LLMGateway:
                 output_tokens=response.usage.output_tokens
             )
             
+            # Record Metrics
+            tokens_consumed_total.labels(model=model, type="input").inc(response.usage.input_tokens)
+            tokens_consumed_total.labels(model=model, type="output").inc(response.usage.output_tokens)
+            llm_latency_seconds.labels(model=model).observe(latency_ms / 1000.0)
+
             return {
                 "raw_response": content,
                 "input_tokens": response.usage.input_tokens,

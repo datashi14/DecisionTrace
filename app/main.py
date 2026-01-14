@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.core.config import settings
 from app.api.v1.decisions import router as decisions_router
 from app.api.v1.evaluations import router as evaluations_router
 from app.trace_store.store import trace_store
+from app.observability.metrics import decisions_total, decision_latency_seconds, hard_constraint_violations_total
 
 logger = structlog.get_logger()
 
@@ -26,6 +28,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Instrument FastAPI with Prometheus
+Instrumentator().instrument(app).expose(app)
 
 app.include_router(decisions_router, prefix=settings.API_V1_STR, tags=["decisions"])
 app.include_router(evaluations_router, prefix=settings.API_V1_STR, tags=["evaluations"])

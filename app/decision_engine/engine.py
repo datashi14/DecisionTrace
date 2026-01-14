@@ -4,6 +4,7 @@ from jinja2 import Template
 from app.llm_gateway.client import llm_gateway
 from app.core.utils import extract_json
 from app.core.exceptions import ModelTimeoutError
+from app.observability.metrics import shadow_vetoes_total
 
 logger = structlog.get_logger()
 
@@ -75,6 +76,9 @@ class DecisionEngine:
                 if primary_decision.get("decision") == "ACT":
                     if not shadow_decision or shadow_decision.get("decision") != "ACT":
                         logger.warning("shadow_veto_triggered", primary=primary_decision.get("decision"), shadow=shadow_decision.get("decision") if shadow_decision else "FAIL")
+                        # Record shadow veto metric
+                        shadow_vetoes_total.labels(policy_id=policy_config.get("name", "default")).inc()
+                        
                         primary_decision["decision"] = "ABSTAIN"
                         primary_decision["rationale"] += " (Overridden by Asymmetric Safety Shadow: Unilateral veto triggered.)"
                         primary_decision["risk_factors"].append("shadow_veto")
